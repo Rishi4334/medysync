@@ -25,7 +25,9 @@ async function main() {
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));
+  // Keep both mounts to support clients expecting either /api/* or /* routes.
   app.use("/api", router);
+  app.use(router);
 
   io.on("connection", (socket) => {
     socket.emit("connected", { ok: true, service: "medcare-backend" });
