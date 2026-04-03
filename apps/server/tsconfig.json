@@ -7,6 +7,7 @@
     "moduleResolution": "NodeNext",
     "lib": ["es2022"],
     "types": ["node"],
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "noEmit": false
   },
   "include": ["src/**/*.ts"]

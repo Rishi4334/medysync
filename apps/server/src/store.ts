@@ -1,11 +1,14 @@
 import fs from "fs/promises";
 import path from "path";
-import { config } from "./config.js";
 import { createInitialState, nextId } from "./bootstrap.js";
 import { AppState, Assignment, Device, EventRecord, Medicine, NotificationRecord, Reminder, User, AdherenceRecord, DashboardSummary, RecentActivityItem } from "./types.js";
+import { getFirebaseAdmin } from "./firebase.js";
+import { log } from "./logger.js";
 
 const dataDir = path.resolve(process.cwd(), "data");
 const dataFile = path.join(dataDir, "medcare-state.json");
+const firestoreCollection = "medisync";
+const firestoreDoc = "app_state";
 
 function clone<T>(value: T): T {
   if (value === undefined) {
@@ -29,22 +32,72 @@ class JsonStateStore {
   private state: AppState | null = null;
   private loadPromise: Promise<void> | null = null;
   private writeQueue: Promise<void> = Promise.resolve();
+  private firestore: FirebaseFirestore.Firestore | null = null;
+  private backend: "firestore" | "json" | null = null;
 
   async init(): Promise<void> {
     await this.load();
+  }
+
+  private resolveBackend() {
+    if (this.backend) return;
+    const firebase = getFirebaseAdmin();
+    if (firebase) {
+      this.firestore = firebase.firestore();
+      this.backend = "firestore";
+      log.info("State store backend selected", { backend: "firestore" });
+      return;
+    }
+    this.backend = "json";
+    log.warn("Firebase not configured. Falling back to local JSON store.");
+  }
+
+  private async readJsonState(): Promise<AppState | null> {
+    try {
+      const raw = await fs.readFile(dataFile, "utf8");
+      return ensureDefaults(JSON.parse(raw) as AppState);
+    } catch {
+      return null;
+    }
+  }
+
+  private async readFirestoreState(): Promise<AppState | null> {
+    if (!this.firestore) return null;
+    const snap = await this.firestore.collection(firestoreCollection).doc(firestoreDoc).get();
+    if (!snap.exists) return null;
+    return ensureDefaults(snap.data() as AppState);
   }
 
   private async load(): Promise<AppState> {
     if (this.state) return this.state;
     if (!this.loadPromise) {
       this.loadPromise = (async () => {
-        try {
-          const raw = await fs.readFile(dataFile, "utf8");
-          this.state = ensureDefaults(JSON.parse(raw) as AppState);
-        } catch {
-          this.state = createInitialState();
-          await this.persist();
+        this.resolveBackend();
+
+        if (this.backend === "firestore") {
+          const cloudState = await this.readFirestoreState();
+          if (cloudState) {
+            this.state = cloudState;
+            return;
+          }
+
+          const localState = await this.readJsonState();
+          if (localState) {
+            this.state = localState;
+            await this.persist();
+            log.info("Seeded Firestore from local JSON state");
+            return;
+          }
         }
+
+        const localState = await this.readJsonState();
+        if (localState) {
+          this.state = localState;
+          return;
+        }
+
+        this.state = createInitialState();
+        await this.persist();
       })();
     }
     await this.loadPromise;
@@ -54,6 +107,13 @@ class JsonStateStore {
 
   private async persist(): Promise<void> {
     if (!this.state) return;
+    this.resolveBackend();
+
+    if (this.backend === "firestore" && this.firestore) {
+      await this.firestore.collection(firestoreCollection).doc(firestoreDoc).set(this.state);
+      return;
+    }
+
     await fs.mkdir(dataDir, { recursive: true });
     await fs.writeFile(dataFile, JSON.stringify(this.state, null, 2), "utf8");
   }

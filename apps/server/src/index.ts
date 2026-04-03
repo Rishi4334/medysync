@@ -1,12 +1,15 @@
+// @ts-ignore
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
+// @ts-ignore
 import { Server } from "socket.io";
 import { config } from "./config.js";
 import router from "./routes.js";
 import { registerSocketServer } from "./realtime.js";
 import { store } from "./store.js";
 import { startMqttBridge } from "./mqtt.js";
+import { log } from "./logger.js";
 
 async function main() {
   await store.init();
@@ -16,29 +19,48 @@ async function main() {
   const server = createServer(app);
   const io = new Server(server, {
     cors: {
-      origin: config.corsOrigins,
+      origin: config.corsOrigin,
       credentials: true,
     },
   });
   registerSocketServer(io);
 
-  app.use(cors({ origin: config.corsOrigins, credentials: true }));
+  app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));
-  // Keep both mounts to support clients expecting either /api/* or /* routes.
+  app.use((req: any, res: any, next: any) => {
+    const startedAt = Date.now();
+    res.on("finish", () => {
+      log.info("HTTP request", {
+        method: req.method,
+        path: req.originalUrl,
+        status: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      });
+    });
+    next();
+  });
   app.use("/api", router);
-  app.use(router);
 
-  io.on("connection", (socket) => {
+  io.on("connection", (socket: any) => {
+    log.info("Socket connected", { socketId: socket.id });
     socket.emit("connected", { ok: true, service: "medcare-backend" });
+    socket.on("disconnect", (reason: any) => {
+      log.info("Socket disconnected", { socketId: socket.id, reason });
+    });
   });
 
   server.listen(config.port, () => {
-    console.log(`MedCare backend listening on http://localhost:${config.port}`);
+    log.info("MedCare backend started", {
+      port: config.port,
+      corsOrigin: config.corsOrigin,
+      mqttBaseTopic: config.mqttBaseTopic,
+      usingFirebase: Boolean(config.firebaseServiceAccountJson || (config.firebaseClientEmail && config.firebasePrivateKey)),
+    });
   });
 }
 
 main().catch((error) => {
-  console.error(error);
+  log.error("Fatal startup error", { error: String(error) });
   process.exit(1);
 });

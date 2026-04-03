@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
@@ -31,7 +32,8 @@ const int PIR_INTERACTION_PIN = 26;
 const int BUZZER_PIN = 25;
 
 WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+WiFiClientSecure secureClient;
+PubSubClient mqttClient(secureClient);
 
 struct ReminderSlot {
   bool active = false;
@@ -101,7 +103,7 @@ void connectMqtt();
 
 void publishTelemetry(const char* eventType, const String& description, const String& severity, JsonObject extra = JsonObject()) {
   if (!mqttClient.connected()) return;
-  JsonDocument doc;
+  StaticJsonDocument<512> doc;
   doc["deviceCode"] = DEVICE_CODE;
   doc["event"] = eventType;
   doc["description"] = description;
@@ -118,7 +120,7 @@ void publishTelemetry(const char* eventType, const String& description, const St
 
 void publishStatus(const char* status) {
   if (!mqttClient.connected()) return;
-  JsonDocument doc;
+  StaticJsonDocument<256> doc;
   doc["deviceCode"] = DEVICE_CODE;
   doc["status"] = status;
   doc["lastSeenAt"] = millis();
@@ -163,7 +165,7 @@ void addReminder(const JsonObject& item) {
   reminders[reminderCount++] = slot;
 }
 
-void syncRemindersFromPayload(const JsonDocument& doc) {
+void syncRemindersFromPayload(JsonVariantConst doc) {
   clearReminders();
   if (doc["reminders"].is<JsonArray>()) {
     for (JsonObject item : doc["reminders"].as<JsonArray>()) {
@@ -177,8 +179,8 @@ void syncRemindersFromPayload(const JsonDocument& doc) {
   publishStatus("online");
 }
 
-void handleCommand(const JsonDocument& doc) {
-  const char* command = doc["command"] | "";
+void handleCommand(JsonVariantConst doc) {
+  const char* command = doc["command"] | doc["type"] | "";
   if (strcmp(command, "sync_reminders") == 0) {
     syncRemindersFromPayload(doc);
     return;
@@ -199,7 +201,7 @@ void handleCommand(const JsonDocument& doc) {
 }
 
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
-  JsonDocument doc;
+  StaticJsonDocument<1024> doc;
   DeserializationError err = deserializeJson(doc, payload, length);
   if (err) return;
   handleCommand(doc);
@@ -269,7 +271,7 @@ void triggerReminder(ReminderSlot& reminder, const tm& now) {
   reminder.triggeredToday = true;
   buzzerStart(2400, 2500);
   latestReminderLabel = reminder.medicineName + " at " + reminder.scheduledTime;
-  JsonDocument extra;
+  StaticJsonDocument<128> extra;
   extra["scheduledTime"] = reminder.scheduledTime;
   extra["medicineName"] = reminder.medicineName;
   extra["dosage"] = reminder.dosage;
@@ -301,7 +303,7 @@ void readSensors() {
 
   if (motion && !motionState && now - lastMotionPublish > 3000) {
     lastMotionPublish = now;
-    JsonDocument extra;
+    StaticJsonDocument<96> extra;
     extra["source"] = "pir_motion";
     publishTelemetry("motion_detected", "Motion detected near medicine box", "warning", extra.as<JsonObject>());
   }
@@ -309,7 +311,7 @@ void readSensors() {
   if (interaction && !interactionState && now - lastInteractionPublish > 3000) {
     lastInteractionPublish = now;
     buzzerStart(1800, 1200);
-    JsonDocument extra;
+    StaticJsonDocument<96> extra;
     extra["source"] = "pir_interaction";
     publishTelemetry("box_opened", "Medicine box interaction detected", "success", extra.as<JsonObject>());
   }
@@ -371,6 +373,7 @@ void setup() {
   pinMode(BUZZER_PIN, OUTPUT);
 
   setupDisplay();
+  secureClient.setInsecure();
   connectWifi();
   syncTimeNow();
   mqttClient.setBufferSize(1024);

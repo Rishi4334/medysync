@@ -4,10 +4,12 @@ import { store } from "./store.js";
 import { createEventRecord, normalizeEventType } from "./utils.js";
 import { emitRealtime } from "./realtime.js";
 import { notifyForEvent } from "./notifications.js";
+import { log } from "./logger.js";
 
 let client: mqtt.MqttClient | null = null;
 
 export async function startMqttBridge() {
+  log.info("Starting MQTT bridge", { broker: config.mqttBrokerUrl, topic: config.mqttBaseTopic });
   client = mqtt.connect(config.mqttBrokerUrl, {
     clientId: config.mqttClientId,
     username: config.mqttUsername || undefined,
@@ -16,9 +18,15 @@ export async function startMqttBridge() {
   });
 
   client.on("connect", async () => {
+    log.info("MQTT connected");
     await client?.subscribe(`${config.mqttBaseTopic}/devices/+/telemetry`);
     await client?.subscribe(`${config.mqttBaseTopic}/devices/+/status`);
     await client?.subscribe(`${config.mqttBaseTopic}/devices/+/events`);
+    log.info("MQTT subscriptions registered");
+  });
+
+  client.on("error", (err: Error) => {
+    log.error("MQTT error", { error: err.message });
   });
 
   client.on("message", async (topic: string, payload: Buffer) => {
@@ -32,6 +40,7 @@ export async function startMqttBridge() {
       if (!device) return;
 
       if (tail === "status") {
+        log.info("MQTT device status", { deviceCode, status: String(message.status ?? "unknown") });
         await store.updateDevice(device.id, {
           status: (message.status as "online" | "offline" | "unknown") ?? "online",
           lastSeenAt: new Date().toISOString(),
@@ -49,6 +58,7 @@ export async function startMqttBridge() {
       }
 
       if (tail === "telemetry" || tail === "events") {
+        log.info("MQTT telemetry event", { deviceCode, tail });
         const eventType = normalizeEventType(String(message.event ?? message.type ?? "motion_detected"));
         const event = await createEventRecord({
           patientId: device.patientId ?? Number(message.patientId ?? 0),
@@ -67,13 +77,14 @@ export async function startMqttBridge() {
         emitRealtime("event.created", event);
         await notifyForEvent(event);
       }
-    } catch {
-      // Ignore malformed messages and keep the bridge alive.
+    } catch (error) {
+      log.warn("Malformed MQTT payload ignored", { topic, error: String(error) });
     }
   });
 }
 
 export async function publishDeviceCommand(deviceCode: string, payload: unknown) {
   if (!client) return;
+  log.info("Publishing device command", { deviceCode });
   client.publish(`${config.mqttBaseTopic}/devices/${deviceCode}/commands`, JSON.stringify(payload), { qos: 1, retain: false });
 }

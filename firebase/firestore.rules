@@ -1,10 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Access to Firestore is mediated by backend Admin SDK.
-    // Keep client-side access blocked by default.
-    match /{document=**} {
-      allow read, write: if false;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isCaretakerOrAdmin() {
+      return isSignedIn() && (request.auth.token.role == 'caretaker' || request.auth.token.role == 'admin');
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if isCaretakerOrAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /medicines/{medicineId} {
+      allow read: if isSignedIn();
+      allow write: if isCaretakerOrAdmin();
+    }
+
+    match /reminders/{reminderId} {
+      allow read: if isSignedIn();
+      allow write: if isCaretakerOrAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /devices/{deviceId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCaretakerOrAdmin();
+    }
+
+    match /adherenceRecords/{recordId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
   }
 }

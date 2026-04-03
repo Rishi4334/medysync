@@ -1,8 +1,10 @@
 import { store } from "./store.js";
 import { sendPushNotification } from "./firebase.js";
 import { EventRecord } from "./types.js";
+import { log } from "./logger.js";
 
 export async function notifyForEvent(event: EventRecord) {
+  log.info("Processing event notification", { eventType: event.eventType, patientId: event.patientId, severity: event.severity });
   const state = await store.getState();
   const patient = state.users.find((user) => user.id === event.patientId);
   const assignments = state.assignments.filter((assignment) => assignment.patientId === event.patientId);
@@ -21,6 +23,8 @@ export async function notifyForEvent(event: EventRecord) {
   const tokens = caretakers
     .flatMap((caretaker) => (caretaker ? [(caretaker as { fcmToken?: string }).fcmToken].filter(Boolean) : []))
     .map((token) => String(token));
+
+  log.info("Resolved caretaker notification targets", { patientId: event.patientId, tokenCount: tokens.length });
 
   await sendPushNotification(tokens, notification.title, notification.body, {
     patientId: String(event.patientId),

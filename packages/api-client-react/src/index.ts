@@ -1,12 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-const DEFAULT_PROD_API_BASE_URL = "https://medisync-api.onrender.com";
-const envApiBaseUrl = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL?.trim();
-const API_BASE_URL = envApiBaseUrl && envApiBaseUrl.length > 0
-  ? envApiBaseUrl
-  : typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://localhost:8080"
-    : DEFAULT_PROD_API_BASE_URL;
+const API_BASE_URL = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "http://localhost:8080";
 
 export type Role = "admin" | "caretaker" | "patient";
 export type DeviceStatus = "online" | "offline" | "unknown";
@@ -133,17 +127,8 @@ interface ApiError extends Error {
   details?: unknown;
 }
 
-async function parseErrorDetails(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return await response.text();
-  }
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const primaryUrl = `${API_BASE_URL}/api${path}`;
-  let response = await fetch(primaryUrl, {
+  const response = await fetch(`${API_BASE_URL}/api${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
@@ -151,22 +136,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
-  // Fallback for deployments where backend routes are mounted without /api.
-  if (response.status === 404) {
-    const fallbackUrl = `${API_BASE_URL}${path}`;
-    response = await fetch(fallbackUrl, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {}),
-      },
-      ...init,
-    });
-  }
-
   if (!response.ok) {
     const error = new Error(`Request failed with status ${response.status}`) as ApiError;
     error.status = response.status;
-    error.details = await parseErrorDetails(response);
+    try {
+      error.details = await response.json();
+    } catch {
+      error.details = await response.text();
+    }
     throw error;
   }
 

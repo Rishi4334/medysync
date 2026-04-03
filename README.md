@@ -6,7 +6,6 @@ Production-focused monorepo for a medicine reminder and patient-care platform.
 
 - React web app using the exact frontend structure you provided
 - Node.js backend with REST, MQTT bridge, Socket.IO realtime events, and Firebase Admin push support
-- Android WebView wrapper
 - ESP32 Arduino firmware for the smart medicine box
 - Firebase security rules and MQTT broker config
 
@@ -28,8 +27,3 @@ Production-focused monorepo for a medicine reminder and patient-care platform.
 ## Important note about the frontend
 
 The UI here preserves the structure and visual direction from the frontend you attached. Do not replace it with a different template unless you intentionally want a redesign.
-
-## Finish to 100% (cloud)
-
-- Step-by-step runbook: `docs/cloud-runbook.md`
-- Values you need to fill and share: `docs/cloud-values-to-fill.md`

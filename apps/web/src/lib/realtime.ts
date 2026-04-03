@@ -2,23 +2,27 @@ import { useEffect } from "react";
 import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 
-const DEFAULT_PROD_API_BASE_URL = "https://medisync-api.onrender.com";
-const envApiBaseUrl = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL?.trim();
-const API_BASE_URL = envApiBaseUrl && envApiBaseUrl.length > 0
-  ? envApiBaseUrl
-  : typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://localhost:8080"
-    : DEFAULT_PROD_API_BASE_URL;
+const API_BASE_URL = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "http://localhost:8080";
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const socket = io(API_BASE_URL);
+    const socket = io(API_BASE_URL, { transports: ["websocket"] });
 
     const invalidateAll = async () => {
       await queryClient.invalidateQueries();
     };
+
+    socket.on("connect", () => {
+      console.info("[frontend] realtime connected", { socketId: socket.id });
+    });
+    socket.on("connect_error", (error) => {
+      console.error("[frontend] realtime connect error", { error: error.message });
+    });
+    socket.on("disconnect", (reason) => {
+      console.warn("[frontend] realtime disconnected", { reason });
+    });
 
     socket.on("connected", invalidateAll);
     socket.on("user.created", invalidateAll);
