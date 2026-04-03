@@ -133,8 +133,17 @@ interface ApiError extends Error {
   details?: unknown;
 }
 
+async function parseErrorDetails(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return await response.text();
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/api${path}`, {
+  const primaryUrl = `${API_BASE_URL}/api${path}`;
+  let response = await fetch(primaryUrl, {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
@@ -142,14 +151,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
+  // Fallback for deployments where backend routes are mounted without /api.
+  if (response.status === 404) {
+    const fallbackUrl = `${API_BASE_URL}${path}`;
+    response = await fetch(fallbackUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+      ...init,
+    });
+  }
+
   if (!response.ok) {
     const error = new Error(`Request failed with status ${response.status}`) as ApiError;
     error.status = response.status;
-    try {
-      error.details = await response.json();
-    } catch {
-      error.details = await response.text();
-    }
+    error.details = await parseErrorDetails(response);
     throw error;
   }
 

@@ -14,7 +14,7 @@ export function useRealtimeSync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const socket = io(API_BASE_URL, { transports: ["websocket"] });
+    const socket = io(API_BASE_URL);
 
     const invalidateAll = async () => {
       await queryClient.invalidateQueries();
