@@ -2,10 +2,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const rawCorsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:5173";
+const corsOrigins = rawCorsOrigin
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const config = {
   port: Number(process.env.PORT ?? 8080),
   nodeEnv: process.env.NODE_ENV ?? "development",
-  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+  corsOrigin: rawCorsOrigin,
+  corsOrigins,
   jwtSecret: process.env.JWT_SECRET ?? "replace-this-secret",
   apiBaseUrl: process.env.API_BASE_URL ?? "http://localhost:8080",
   mqttBrokerUrl: process.env.MQTT_BROKER_URL ?? "mqtt://localhost:1883",

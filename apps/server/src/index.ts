@@ -16,13 +16,13 @@ async function main() {
   const server = createServer(app);
   const io = new Server(server, {
     cors: {
-      origin: config.corsOrigin,
+      origin: config.corsOrigins,
       credentials: true,
     },
   });
   registerSocketServer(io);
 
-  app.use(cors({ origin: config.corsOrigin, credentials: true }));
+  app.use(cors({ origin: config.corsOrigins, credentials: true }));
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use("/api", router);

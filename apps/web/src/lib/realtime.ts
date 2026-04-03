@@ -2,7 +2,13 @@ import { useEffect } from "react";
 import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 
-const API_BASE_URL = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? "http://localhost:8080";
+const DEFAULT_PROD_API_BASE_URL = "https://medisync-api.onrender.com";
+const envApiBaseUrl = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL?.trim();
+const API_BASE_URL = envApiBaseUrl && envApiBaseUrl.length > 0
+  ? envApiBaseUrl
+  : typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8080"
+    : DEFAULT_PROD_API_BASE_URL;
 
 export function useRealtimeSync() {
   const queryClient = useQueryClient();
