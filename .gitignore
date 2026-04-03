@@ -19,3 +19,5 @@ firebase/service-account.json
 android/google-services.json
 apps/server/.env
 apps/web/.env.local
+docs/cloud-values-to-fill.md
+*service-account*.json
