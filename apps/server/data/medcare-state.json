@@ -1,0 +1,142 @@
+{
+  "counters": {
+    "user": 5,
+    "assignment": 2,
+    "medicine": 2,
+    "reminder": 2,
+    "event": 2,
+    "device": 2,
+    "adherence": 2,
+    "notification": 1
+  },
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "passwordHash": "$2b$10$nBd1ZwVYJNSs8OlmmRrL4.MIFEhIZ4BKHCujbeuhivgjXr5R9JG0O",
+      "name": "Aarav Shah",
+      "email": "admin@medcare.local",
+      "role": "admin",
+      "phone": "+91 90000 00001",
+      "avatarUrl": null,
+      "fcmToken": null,
+      "isActive": true,
+      "createdAt": "2026-04-03T05:34:08.751Z"
+    },
+    {
+      "id": 2,
+      "username": "caretaker1",
+      "passwordHash": "$2b$10$cSBER.Y1Qbn1G0gADLCnTOoZBVZPG0VZEBQH0ImAB0gJuhmVAJMye",
+      "name": "Priya Mehta",
+      "email": "priya@medcare.local",
+      "role": "caretaker",
+      "phone": "+91 90000 00002",
+      "avatarUrl": null,
+      "fcmToken": null,
+      "isActive": true,
+      "createdAt": "2026-04-03T05:34:08.763Z"
+    },
+    {
+      "id": 3,
+      "username": "patient1",
+      "passwordHash": "$2b$10$qzPKZ1tRsrThKeM.Ygfou.UyKlx74Y4ievM6VcYiNEngc0SM8Om9K",
+      "name": "Ravi Kumar",
+      "email": "ravi@medcare.local",
+      "role": "patient",
+      "phone": "+91 90000 00003",
+      "avatarUrl": null,
+      "fcmToken": null,
+      "isActive": true,
+      "createdAt": "2026-04-03T05:34:08.763Z"
+    },
+    {
+      "id": 4,
+      "createdAt": "2026-04-03T05:44:06.718Z",
+      "username": "x1",
+      "name": "x",
+      "email": "231fa04334@gmail.com",
+      "password": "123456",
+      "role": "patient",
+      "phone": null,
+      "avatarUrl": null,
+      "passwordHash": "$2b$10$kBjgBWTYr1FmmVsufpSdZOVpsAPEJZ/9Ci2AoaoAe18B5LwAC3Q/i",
+      "isActive": true
+    }
+  ],
+  "assignments": [
+    {
+      "id": 1,
+      "caretakerId": 2,
+      "patientId": 3,
+      "createdAt": "2026-04-03T05:34:08.764Z"
+    }
+  ],
+  "medicines": [
+    {
+      "id": 1,
+      "patientId": 3,
+      "name": "Metformin",
+      "dosage": "500",
+      "unit": "mg",
+      "description": "After breakfast",
+      "color": "#3B82F6",
+      "createdAt": "2026-04-03T05:34:08.764Z"
+    }
+  ],
+  "reminders": [
+    {
+      "id": 1,
+      "patientId": 3,
+      "medicineId": 1,
+      "medicineName": "Metformin",
+      "dosage": "500mg",
+      "scheduledTime": "08:00",
+      "daysOfWeek": "daily",
+      "notes": "Take after food",
+      "isActive": true,
+      "deviceId": 1,
+      "lastTriggeredAt": null,
+      "createdAt": "2026-04-03T05:34:08.764Z"
+    }
+  ],
+  "events": [
+    {
+      "id": 1,
+      "patientId": 3,
+      "deviceId": 1,
+      "eventType": "device_online",
+      "description": "Smart medicine box connected",
+      "severity": "success",
+      "timestamp": "2026-04-03T05:34:08.764Z",
+      "meta": {
+        "source": "seed"
+      }
+    }
+  ],
+  "devices": [
+    {
+      "id": 1,
+      "deviceCode": "ESP32-001",
+      "name": "Patient Room Box",
+      "patientId": 3,
+      "status": "online",
+      "firmwareVersion": "arduino-1.0.0",
+      "lastSeenAt": "2026-04-03T05:34:08.764Z",
+      "lastSyncAt": "2026-04-03T05:34:08.764Z",
+      "createdAt": "2026-04-03T05:34:08.764Z"
+    }
+  ],
+  "adherenceRecords": [
+    {
+      "id": 1,
+      "patientId": 3,
+      "reminderId": 1,
+      "status": "taken",
+      "scheduledAt": "2026-04-03T05:34:08.764Z",
+      "takenAt": "2026-04-03T05:34:08.764Z",
+      "source": "system",
+      "createdAt": "2026-04-03T05:34:08.764Z"
+    }
+  ],
+  "notifications": []
+}
