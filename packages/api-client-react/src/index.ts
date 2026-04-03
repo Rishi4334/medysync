@@ -321,6 +321,10 @@ export function useUpdateDevice() {
   return useMutation({ mutationFn: async ({ id, data }: { id: number; data: Partial<Device> }) => request<Device>(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(data) }) });
 }
 
+export function useDeleteDevice() {
+  return useMutation({ mutationFn: async ({ id }: { id: number }) => request<void>(`/devices/${id}`, { method: "DELETE" }) });
+}
+
 export function useListAdherenceRecords(params: { patientId?: number } = {}, options?: { query?: { queryKey?: readonly unknown[]; enabled?: boolean } }) {
   const query = params.patientId ? `?patientId=${params.patientId}` : "";
   return useQuery({

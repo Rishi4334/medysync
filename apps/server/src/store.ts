@@ -308,6 +308,14 @@ class JsonStateStore {
     });
   }
 
+  async deleteDevice(id: number): Promise<void> {
+    await this.mutate((state) => {
+      state.devices = state.devices.filter((device) => device.id !== id);
+      state.reminders = state.reminders.map((reminder) => (reminder.deviceId === id ? { ...reminder, deviceId: null } : reminder));
+      state.events = state.events.map((event) => (event.deviceId === id ? { ...event, deviceId: null } : event));
+    });
+  }
+
   async listAdherence(patientId?: number): Promise<AdherenceRecord[]> {
     const state = await this.load();
     const records = patientId ? state.adherenceRecords.filter((record) => record.patientId === patientId) : state.adherenceRecords;

@@ -208,6 +208,15 @@ router.patch("/devices/:id", async (req: any, res: any) => {
   res.json(device);
 });
 
+router.delete("/devices/:id", async (req: any, res: any) => {
+  const id = Number(req.params.id);
+  const device = (await store.listDevices()).find((item) => item.id === id);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+  await store.deleteDevice(id);
+  emitRealtime("device.deleted", { id });
+  res.status(204).end();
+});
+
 router.get("/adherence", async (req: any, res: any) => {
   const patientId = typeof req.query.patientId === "string" ? Number(req.query.patientId) : undefined;
   res.json(await store.listAdherence(Number.isFinite(patientId as number) ? patientId : undefined));

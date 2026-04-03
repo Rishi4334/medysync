@@ -38,6 +38,7 @@ export function useRealtimeSync() {
     socket.on("event.created", invalidateAll);
     socket.on("device.created", invalidateAll);
     socket.on("device.updated", invalidateAll);
+    socket.on("device.deleted", invalidateAll);
     socket.on("adherence.created", invalidateAll);
 
     return () => {

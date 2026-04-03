@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useListDevices, useRegisterDevice, useUpdateDevice, useListUsers, getListDevicesQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useListDevices, useRegisterDevice, useDeleteDevice, useListUsers, getListDevicesQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Cpu, Plus, Wifi, WifiOff, HelpCircle } from "lucide-react";
+import { Cpu, Plus, Wifi, WifiOff, HelpCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ export default function DevicesPage() {
   const { data: patients } = useListUsers({ role: "patient" }, { query: { queryKey: getListUsersQueryKey({ role: "patient" }) } });
 
   const registerDevice = useRegisterDevice();
-  const updateDevice = useUpdateDevice();
+  const deleteDevice = useDeleteDevice();
 
   function handleRegister() {
     if (!form.deviceCode || !form.name) {
@@ -98,7 +98,27 @@ export default function DevicesPage() {
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${cfg.bg}`}>
                     <Icon className={`w-6 h-6 ${cfg.color}`} />
                   </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+                    <button
+                      onClick={() => deleteDevice.mutate(
+                        { id: d.id },
+                        {
+                          onSuccess: () => {
+                            qc.invalidateQueries({ queryKey: getListDevicesQueryKey() });
+                            toast({ title: "Device deleted" });
+                          },
+                          onError: () => toast({ title: "Failed to delete device", variant: "destructive" }),
+                        }
+                      )}
+                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
+                      data-testid={`delete-device-${d.id}`}
+                      title="Delete device"
+                      aria-label={`Delete device ${d.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <h3 className="font-semibold text-foreground">{d.name}</h3>
                 <div className="text-xs text-muted-foreground font-mono mt-0.5">{d.deviceCode}</div>
