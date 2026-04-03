@@ -14,10 +14,10 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 const char* WIFI_SSID = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* MQTT_BROKER = "192.168.1.10";
-const int MQTT_PORT = 1883;
-const char* MQTT_USER = "";
-const char* MQTT_PASSWORD = "";
+const char* MQTT_BROKER = "7024cefa43544220aa540998eaed6fc8.s1.eu.hivemq.cloud";
+const int MQTT_PORT = 8883;
+const char* MQTT_USER = "MedySync";
+const char* MQTT_PASSWORD = "MedySync@890";
 const char* DEVICE_CODE = "ESP32-001";
 const char* BASE_TOPIC = "medcare";
 
