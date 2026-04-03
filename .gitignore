@@ -12,3 +12,10 @@ packages/api-client-react/dist
 firmware/**/.pio
 firmware/**/build
 android/**/build
+
+# 🔐 SENSITIVE: Secrets and credentials (NEVER commit!)
+docs/cloud-values-to-fill.md
+firebase/service-account.json
+android/google-services.json
+apps/server/.env
+apps/web/.env.local
