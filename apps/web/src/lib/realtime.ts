@@ -36,6 +36,8 @@ export function useRealtimeSync() {
     socket.on("reminder.updated", invalidateAll);
     socket.on("reminder.deleted", invalidateAll);
     socket.on("event.created", invalidateAll);
+    socket.on("event.deleted", invalidateAll);
+    socket.on("events.cleared", invalidateAll);
     socket.on("device.created", invalidateAll);
     socket.on("device.updated", invalidateAll);
     socket.on("device.deleted", invalidateAll);

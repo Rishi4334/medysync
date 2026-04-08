@@ -1,20 +1,28 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useLoginUser } from "@workspace/api-client-react";
+import { useLoginUser, useCreateUser } from "@workspace/api-client-react";
 import { setCurrentUser, setAuthToken } from "@/lib/auth";
+import { setupPushNotifications } from "@/lib/push-notifications";
 import { Heart, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
+  const [mode, setMode] = useState<"signin" | "register">("signin");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [registerRole, setRegisterRole] = useState<"caretaker" | "patient">("patient");
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const login = useLoginUser();
+  const createUser = useCreateUser();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,6 +32,7 @@ export default function LoginPage() {
         onSuccess: (data) => {
           setCurrentUser(data.user as Parameters<typeof setCurrentUser>[0]);
           setAuthToken(data.token);
+          void setupPushNotifications(data.user.id, { requestPermission: false });
           toast({ title: `Welcome back, ${data.user.name}!` });
           setLocation("/dashboard");
         },
@@ -31,6 +40,37 @@ export default function LoginPage() {
           toast({ title: "Invalid credentials", description: "Please check your username and password.", variant: "destructive" });
         },
       }
+    );
+  }
+
+  function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    if (!username || !password || !name || !email) {
+      toast({ title: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+
+    createUser.mutate(
+      {
+        data: {
+          username,
+          password,
+          name,
+          email,
+          phone: phone || null,
+          role: registerRole,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Account created successfully", description: "You can now sign in with your credentials." });
+          setMode("signin");
+          setPassword("");
+        },
+        onError: () => {
+          toast({ title: "Registration failed", description: "Username or email may already be in use.", variant: "destructive" });
+        },
+      },
     );
   }
 
@@ -76,11 +116,60 @@ export default function LoginPage() {
               </div>
               <span className="text-xl font-bold">MedCare</span>
             </div>
-            <h2 className="text-2xl font-bold text-foreground">Sign in to your account</h2>
-            <p className="text-muted-foreground mt-1">Enter your credentials to continue</p>
+            <h2 className="text-2xl font-bold text-foreground">{mode === "signin" ? "Sign in to your account" : "Create your account"}</h2>
+            <p className="text-muted-foreground mt-1">
+              {mode === "signin" ? "Enter your credentials to continue" : "Register as caretaker or patient"}
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="mb-5 rounded-xl border bg-muted/40 p-1 grid grid-cols-2 gap-1">
+            <button
+              type="button"
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${mode === "signin" ? "bg-white shadow-sm" : "text-muted-foreground"}`}
+              onClick={() => setMode("signin")}
+              data-testid="button-mode-signin"
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${mode === "register" ? "bg-white shadow-sm" : "text-muted-foreground"}`}
+              onClick={() => setMode("register")}
+              data-testid="button-mode-register"
+            >
+              Register
+            </button>
+          </div>
+
+          <form onSubmit={mode === "signin" ? handleSubmit : handleRegister} className="space-y-5">
+            {mode === "register" && (
+              <>
+                <div>
+                  <Label htmlFor="name">Full name</Label>
+                  <Input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Enter your full name" className="mt-1" required data-testid="input-name" />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" className="mt-1" required data-testid="input-email" />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone (optional)</Label>
+                  <Input id="phone" type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Enter your phone" className="mt-1" data-testid="input-phone" />
+                </div>
+                <div>
+                  <Label>Register as</Label>
+                  <Select value={registerRole} onValueChange={(value: "caretaker" | "patient") => setRegisterRole(value)}>
+                    <SelectTrigger className="mt-1" data-testid="select-register-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="patient">Patient</SelectItem>
+                      <SelectItem value="caretaker">Caretaker</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div>
               <Label htmlFor="username">Username</Label>
               <Input id="username" type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Enter your username" className="mt-1" required data-testid="input-username" />
@@ -94,8 +183,14 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={login.isPending} data-testid="button-submit">
-              {login.isPending ? "Signing in..." : "Sign in"}
+            <Button type="submit" className="w-full" disabled={login.isPending || createUser.isPending} data-testid="button-submit">
+              {mode === "signin"
+                ? login.isPending
+                  ? "Signing in..."
+                  : "Sign in"
+                : createUser.isPending
+                  ? "Creating account..."
+                  : "Create account"}
             </Button>
           </form>
 

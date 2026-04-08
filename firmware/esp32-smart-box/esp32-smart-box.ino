@@ -131,7 +131,17 @@ void publishStatus(const char* status) {
 }
 
 bool parseDaysMatch(const String& daysOfWeek, const tm& now) {
-  if (daysOfWeek == "daily") return true;
+  if (daysOfWeek == "daily" || daysOfWeek == "all") return true;
+  if (daysOfWeek == "weekdays" || daysOfWeek == "1,2,3,4,5") return now.tm_wday >= 1 && now.tm_wday <= 5;
+  if (daysOfWeek == "weekends" || daysOfWeek == "0,6") return now.tm_wday == 0 || now.tm_wday == 6;
+
+  if (daysOfWeek.startsWith("once:")) {
+    String date = daysOfWeek.substring(5);
+    char nowDate[11];
+    snprintf(nowDate, sizeof(nowDate), "%04d-%02d-%02d", now.tm_year + 1900, now.tm_mon + 1, now.tm_mday);
+    return date == String(nowDate);
+  }
+
   String day = String(now.tm_wday);
   int start = 0;
   while (start < daysOfWeek.length()) {

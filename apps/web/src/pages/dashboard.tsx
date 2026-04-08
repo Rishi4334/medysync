@@ -1,5 +1,6 @@
 import { useGetDashboardSummary, useGetRecentActivity, getGetDashboardSummaryQueryKey, getGetRecentActivityQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PushNotificationBanner } from "@/components/notifications/PushNotificationBanner";
 import { getCurrentUser } from "@/lib/auth";
 import { Activity, Users, Bell, Cpu, TrendingUp, AlertTriangle, CheckCircle2, XCircle, Clock } from "lucide-react";
 
@@ -34,6 +35,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
+      <PushNotificationBanner />
       <div className="mb-6 sm:mb-8">
         <h1 className="text-xl font-bold text-foreground sm:text-2xl">Welcome back, {user?.name?.split(" ")[0]}</h1>
         <p className="text-muted-foreground mt-1">

@@ -278,6 +278,29 @@ class JsonStateStore {
     });
   }
 
+  async deleteEvent(id: number): Promise<void> {
+    await this.mutate((state) => {
+      state.events = state.events.filter((event) => event.id !== id);
+    });
+  }
+
+  async deleteEventsByType(eventType: string, limit?: number): Promise<number> {
+    let deleted = 0;
+    await this.mutate((state) => {
+      const toKeep = state.events.filter((event) => event.eventType !== eventType);
+      deleted = state.events.length - toKeep.length;
+      if (limit && deleted > limit) {
+        const sorted = state.events.filter((event) => event.eventType === eventType).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+        const remove = sorted.slice(0, limit);
+        state.events = state.events.filter((event) => !remove.some((r) => r.id === event.id));
+        deleted = limit;
+      } else {
+        state.events = toKeep;
+      }
+    });
+    return deleted;
+  }
+
   async listDevices(): Promise<Device[]> {
     const state = await this.load();
     return clone(state.devices);
@@ -326,6 +349,15 @@ class JsonStateStore {
     return this.mutate((state) => {
       const record: AdherenceRecord = { ...input, id: nextId(state, "adherence"), createdAt: new Date().toISOString() };
       state.adherenceRecords.push(record);
+      return clone(record);
+    });
+  }
+
+  async updateAdherenceRecord(id: number, patch: Partial<AdherenceRecord>): Promise<AdherenceRecord | undefined> {
+    return this.mutate((state) => {
+      const record = state.adherenceRecords.find((item) => item.id === id);
+      if (!record) return undefined;
+      Object.assign(record, patch);
       return clone(record);
     });
   }

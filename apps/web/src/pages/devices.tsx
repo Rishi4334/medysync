@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListDevices, useRegisterDevice, useDeleteDevice, useListUsers, getListDevicesQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useListDevices, useRegisterDevice, useDeleteDevice, useConfigureDevice, useListUsers, getListDevicesQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Cpu, Plus, Wifi, WifiOff, HelpCircle, Trash2 } from "lucide-react";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function DevicesPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ deviceCode: "", name: "", patientId: "", firmwareVersion: "arduino-1.0.0" });
+  const [buzzerDurationByDevice, setBuzzerDurationByDevice] = useState<Record<number, number>>({});
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -22,6 +23,7 @@ export default function DevicesPage() {
 
   const registerDevice = useRegisterDevice();
   const deleteDevice = useDeleteDevice();
+  const configureDevice = useConfigureDevice();
 
   function handleRegister() {
     if (!form.deviceCode || !form.name) {
@@ -126,6 +128,42 @@ export default function DevicesPage() {
                 <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-muted-foreground">
                   <span>{d.firmwareVersion ?? "Unknown firmware"}</span>
                   {d.lastSeenAt && <span>Last seen {new Date(d.lastSeenAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>}
+                </div>
+                <div className="mt-3 rounded-xl border bg-slate-50 p-3">
+                  <div className="mb-2 text-xs font-medium text-slate-700">Buzzer duration (ms)</div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={500}
+                      max={10000}
+                      step={100}
+                      value={buzzerDurationByDevice[d.id] ?? 2500}
+                      onChange={(e) =>
+                        setBuzzerDurationByDevice((prev) => ({
+                          ...prev,
+                          [d.id]: Number(e.target.value) || 2500,
+                        }))
+                      }
+                      className="h-9"
+                      data-testid={`input-buzzer-duration-${d.id}`}
+                    />
+                    <Button
+                      size="sm"
+                      disabled={configureDevice.isPending}
+                      onClick={() =>
+                        configureDevice.mutate(
+                          { id: d.id, duration: Math.max(500, Math.min(10000, buzzerDurationByDevice[d.id] ?? 2500)) },
+                          {
+                            onSuccess: () => toast({ title: `Buzzer duration updated for ${d.deviceCode}` }),
+                            onError: () => toast({ title: "Failed to configure buzzer", variant: "destructive" }),
+                          },
+                        )
+                      }
+                      data-testid={`button-configure-buzzer-${d.id}`}
+                    >
+                      Apply
+                    </Button>
+                  </div>
                 </div>
               </div>
             );

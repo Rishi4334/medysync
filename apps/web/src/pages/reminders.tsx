@@ -12,11 +12,49 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/lib/auth";
 
+const DAY_OPTIONS = [
+  { value: "daily", label: "Daily" },
+  { value: "1,2,3,4,5", label: "Weekdays" },
+  { value: "0,6", label: "Weekends" },
+  { value: "1", label: "Monday only" },
+  { value: "2", label: "Tuesday only" },
+  { value: "3", label: "Wednesday only" },
+  { value: "4", label: "Thursday only" },
+  { value: "5", label: "Friday only" },
+  { value: "6", label: "Saturday only" },
+  { value: "0", label: "Sunday only" },
+  { value: "once", label: "Only once (pick date)" },
+];
+
+const TIME_PRESETS = [
+  { label: "Morning", value: "08:00" },
+  { label: "Evening", value: "18:00" },
+  { label: "Night", value: "21:00" },
+];
+
+function formatDaysLabel(daysOfWeek: string): string {
+  if (daysOfWeek === "daily") return "Daily";
+  if (daysOfWeek === "1,2,3,4,5") return "Weekdays";
+  if (daysOfWeek === "0,6") return "Weekends";
+  if (daysOfWeek === "0") return "Sunday only";
+  if (daysOfWeek === "1") return "Monday only";
+  if (daysOfWeek === "2") return "Tuesday only";
+  if (daysOfWeek === "3") return "Wednesday only";
+  if (daysOfWeek === "4") return "Thursday only";
+  if (daysOfWeek === "5") return "Friday only";
+  if (daysOfWeek === "6") return "Saturday only";
+  if (daysOfWeek.startsWith("once:")) {
+    const datePart = daysOfWeek.split(":")[1] ?? "";
+    return datePart ? `One-time (${datePart})` : "One-time";
+  }
+  return daysOfWeek;
+}
+
 export default function RemindersPage() {
   const user = getCurrentUser();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ patientId: "", medicineId: "", scheduledTime: "08:00", daysOfWeek: "daily", dosage: "", notes: "" });
+  const [form, setForm] = useState({ patientId: "", medicineId: "", scheduledTime: "08:00", daysOfWeek: "daily", onceDate: "", dosage: "", notes: "" });
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -36,12 +74,18 @@ export default function RemindersPage() {
       toast({ title: "Please fill all required fields", variant: "destructive" });
       return;
     }
-    const med = medicines?.find((m) => m.id === parseInt(form.medicineId));
-    createReminder.mutate({ data: { patientId: parseInt(form.patientId), medicineId: parseInt(form.medicineId), scheduledTime: form.scheduledTime, daysOfWeek: form.daysOfWeek, dosage: form.dosage, notes: form.notes || null } }, {
+
+    if (form.daysOfWeek === "once" && !form.onceDate) {
+      toast({ title: "Please select a date for one-time reminder", variant: "destructive" });
+      return;
+    }
+
+    const normalizedDays = form.daysOfWeek === "once" ? `once:${form.onceDate}` : form.daysOfWeek;
+    createReminder.mutate({ data: { patientId: parseInt(form.patientId), medicineId: parseInt(form.medicineId), scheduledTime: form.scheduledTime, daysOfWeek: normalizedDays, dosage: form.dosage, notes: form.notes || null } }, {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListRemindersQueryKey({}) });
         setOpen(false);
-        setForm({ patientId: "", medicineId: "", scheduledTime: "08:00", daysOfWeek: "daily", dosage: "", notes: "" });
+        setForm({ patientId: "", medicineId: "", scheduledTime: "08:00", daysOfWeek: "daily", onceDate: "", dosage: "", notes: "" });
         toast({ title: "Reminder created successfully" });
       },
       onError: () => toast({ title: "Failed to create reminder", variant: "destructive" }),
@@ -91,19 +135,38 @@ export default function RemindersPage() {
                   <div>
                     <Label>Scheduled Time</Label>
                     <Input type="time" value={form.scheduledTime} onChange={(e) => setForm({ ...form, scheduledTime: e.target.value })} className="mt-1" data-testid="input-time" />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {TIME_PRESETS.map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => setForm({ ...form, scheduledTime: preset.value })}
+                          className="rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
+                          data-testid={`preset-time-${preset.label.toLowerCase()}`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <Label>Days</Label>
                     <Select value={form.daysOfWeek} onValueChange={(v) => setForm({ ...form, daysOfWeek: v })}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="1,2,3,4,5">Weekdays</SelectItem>
-                        <SelectItem value="0,6">Weekends</SelectItem>
+                        {DAY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+                {form.daysOfWeek === "once" && (
+                  <div>
+                    <Label>One-time date</Label>
+                    <Input type="date" value={form.onceDate} onChange={(e) => setForm({ ...form, onceDate: e.target.value })} className="mt-1" data-testid="input-once-date" />
+                  </div>
+                )}
                 <div>
                   <Label>Dosage</Label>
                   <Input value={form.dosage} onChange={(e) => setForm({ ...form, dosage: e.target.value })} placeholder="e.g. 500mg after breakfast" className="mt-1" data-testid="input-dosage" />
@@ -133,7 +196,7 @@ export default function RemindersPage() {
                   <span className="font-medium">{r.medicineName}</span>
                   <Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? "Active" : "Inactive"}</Badge>
                 </div>
-                <div className="text-sm text-muted-foreground">{r.dosage} &bull; {r.scheduledTime} &bull; {r.daysOfWeek === "daily" ? "Daily" : r.daysOfWeek}{r.patient && <span> &bull; {r.patient.name}</span>}</div>
+                <div className="text-sm text-muted-foreground">{r.dosage} &bull; {r.scheduledTime} &bull; {formatDaysLabel(r.daysOfWeek)}{r.patient && <span> &bull; {r.patient.name}</span>}</div>
                 {r.notes && <div className="text-xs text-muted-foreground mt-0.5">{r.notes}</div>}
               </div>
               {(user?.role === "admin" || user?.role === "caretaker") && (

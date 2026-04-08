@@ -7,6 +7,7 @@ import { store } from "./store.js";
 import { emitRealtime } from "./realtime.js";
 import { notifyForEvent } from "./notifications.js";
 import { publishDeviceCommand } from "./mqtt.js";
+import { log } from "./logger.js";
 
 const router = Router();
 
@@ -25,6 +26,48 @@ const createMedicineSchema = z.object({ patientId: z.number().int().positive(), 
 const createReminderSchema = z.object({ patientId: z.number().int().positive(), medicineId: z.number().int().positive(), scheduledTime: z.string().min(1), daysOfWeek: z.string().min(1), dosage: z.string().min(1), notes: z.string().optional().nullable(), deviceId: z.number().int().positive().optional().nullable() });
 const createDeviceSchema = z.object({ deviceCode: z.string().min(1), name: z.string().min(1), patientId: z.number().int().positive().optional().nullable(), firmwareVersion: z.string().optional().nullable() });
 const updateTokenSchema = z.object({ fcmToken: z.string().min(1) });
+
+async function syncRemindersForPatientDevices(patientId: number, preferredDeviceId?: number | null) {
+  const allDevices = await store.listDevices();
+  let targets = allDevices.filter((device) => {
+    if (preferredDeviceId && device.id === preferredDeviceId) return true;
+    return device.patientId === patientId;
+  });
+
+  if (targets.length === 0 && allDevices.length === 1) {
+    targets = [allDevices[0]];
+    log.warn("Reminder sync fallback to only registered device", {
+      patientId,
+      fallbackDeviceCode: allDevices[0].deviceCode,
+      reason: "no patient-mapped device",
+    });
+  }
+
+  if (targets.length === 0) {
+    log.warn("Reminder sync skipped - no target devices", {
+      patientId,
+      preferredDeviceId: preferredDeviceId ?? null,
+      registeredDevices: allDevices.length,
+    });
+    return;
+  }
+
+  const reminders = await store.listReminders(patientId);
+  log.info("Syncing reminders to devices", {
+    patientId,
+    reminderCount: reminders.length,
+    targetDevices: targets.map((device) => device.deviceCode).join(","),
+  });
+
+  await Promise.all(
+    targets.map((device) =>
+      publishDeviceCommand(device.deviceCode, {
+        command: "sync_reminders",
+        reminders,
+      }),
+    ),
+  );
+}
 
 router.post("/auth/login", async (req: any, res: any) => {
   const payload = loginSchema.parse(req.body);
@@ -138,12 +181,7 @@ router.post("/reminders", async (req: any, res: any) => {
     isActive: true,
   });
   emitRealtime("reminder.created", reminder);
-  if (payload.deviceId) {
-    const device = (await store.listDevices()).find((item) => item.id === payload.deviceId);
-    if (device) {
-      await publishDeviceCommand(device.deviceCode, { command: "sync_reminders", reminder });
-    }
-  }
+  await syncRemindersForPatientDevices(payload.patientId, payload.deviceId ?? null);
   res.status(201).json(reminder);
 });
 
@@ -153,12 +191,18 @@ router.patch("/reminders/:id/toggle", async (req: any, res: any) => {
   if (!reminder) return res.status(404).json({ message: "Reminder not found" });
   const updated = await store.updateReminder(id, { isActive: !reminder.isActive });
   emitRealtime("reminder.updated", updated);
+  await syncRemindersForPatientDevices(reminder.patientId, reminder.deviceId ?? null);
   res.json(updated);
 });
 
 router.delete("/reminders/:id", async (req: any, res: any) => {
-  await store.deleteReminder(Number(req.params.id));
-  emitRealtime("reminder.deleted", { id: Number(req.params.id) });
+  const id = Number(req.params.id);
+  const reminder = (await store.listReminders()).find((item) => item.id === id);
+  await store.deleteReminder(id);
+  emitRealtime("reminder.deleted", { id });
+  if (reminder) {
+    await syncRemindersForPatientDevices(reminder.patientId, reminder.deviceId ?? null);
+  }
   res.status(204).end();
 });
 
@@ -181,6 +225,21 @@ router.post("/events", async (req: any, res: any) => {
   emitRealtime("event.created", event);
   await notifyForEvent(event);
   res.status(201).json(event);
+});
+
+router.delete("/events/:id", async (req: any, res: any) => {
+  const id = Number(req.params.id);
+  await store.deleteEvent(id);
+  emitRealtime("event.deleted", { id });
+  res.status(204).end();
+});
+
+router.post("/events/clear-by-type/:type", async (req: any, res: any) => {
+  const eventType = String(req.params.type ?? "device_online");
+  const limit = req.body?.limit ? Number(req.body.limit) : undefined;
+  const deleted = await store.deleteEventsByType(eventType, limit);
+  emitRealtime("events.cleared", { eventType, deleted });
+  res.json({ deleted });
 });
 
 router.get("/devices", async (_req: any, res: any) => {
@@ -215,6 +274,18 @@ router.delete("/devices/:id", async (req: any, res: any) => {
   await store.deleteDevice(id);
   emitRealtime("device.deleted", { id });
   res.status(204).end();
+});
+
+router.post("/devices/:id/config", async (req: any, res: any) => {
+  const id = Number(req.params.id);
+  const device = (await store.listDevices()).find((item) => item.id === id);
+  if (!device) return res.status(404).json({ message: "Device not found" });
+  const payload = req.body as Record<string, unknown>;
+  await publishDeviceCommand(device.deviceCode, {
+    command: "configure_buzzer",
+    duration: payload.duration ? Number(payload.duration) : 2500,
+  });
+  res.json({ message: "Configuration sent to device", deviceCode: device.deviceCode });
 });
 
 router.get("/adherence", async (req: any, res: any) => {

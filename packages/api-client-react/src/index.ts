@@ -305,6 +305,20 @@ export function useListEvents(params: { patientId?: number; limit?: number } = {
   });
 }
 
+export function useDeleteEvent() {
+  return useMutation({ mutationFn: async ({ id }: { id: number }) => request<void>(`/events/${id}`, { method: "DELETE" }) });
+}
+
+export function useClearEventsByType() {
+  return useMutation({
+    mutationFn: async ({ eventType, limit }: { eventType: string; limit?: number }) =>
+      request<{ deleted: number }>(`/events/clear-by-type/${eventType}`, {
+        method: "POST",
+        body: JSON.stringify({ limit }),
+      }),
+  });
+}
+
 export function useListDevices(options?: { query?: { queryKey?: readonly unknown[]; enabled?: boolean } }) {
   return useQuery({
     queryKey: options?.query?.queryKey ?? getListDevicesQueryKey(),
@@ -323,6 +337,16 @@ export function useUpdateDevice() {
 
 export function useDeleteDevice() {
   return useMutation({ mutationFn: async ({ id }: { id: number }) => request<void>(`/devices/${id}`, { method: "DELETE" }) });
+}
+
+export function useConfigureDevice() {
+  return useMutation({
+    mutationFn: async ({ id, duration }: { id: number; duration: number }) =>
+      request<{ message: string; deviceCode: string }>(`/devices/${id}/config`, {
+        method: "POST",
+        body: JSON.stringify({ duration }),
+      }),
+  });
 }
 
 export function useListAdherenceRecords(params: { patientId?: number } = {}, options?: { query?: { queryKey?: readonly unknown[]; enabled?: boolean } }) {
