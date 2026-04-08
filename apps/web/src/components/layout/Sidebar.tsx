@@ -33,7 +33,7 @@ const navItems: NavItem[] = [
   { href: "/caretakers", label: "Caretakers", icon: UserCheck, roles: ["admin"] },
   { href: "/medicines", label: "Medicines", icon: Pill, roles: ["admin", "caretaker", "patient"] },
   { href: "/reminders", label: "Reminders", icon: Bell, roles: ["admin", "caretaker", "patient"] },
-  { href: "/events", label: "IoT Events", icon: Activity, roles: ["admin", "caretaker"] },
+  { href: "/events", label: "IoT Events", icon: Activity, roles: ["admin", "caretaker", "patient"] },
   { href: "/devices", label: "Devices", icon: Cpu, roles: ["admin", "caretaker"] },
   { href: "/adherence", label: "Adherence", icon: BarChart3, roles: ["admin", "caretaker", "patient"] },
   { href: "/users", label: "Users", icon: Settings, roles: ["admin"] },

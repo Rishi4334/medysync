@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListUsers, useListAdherenceRecords, getListUsersQueryKey, getListAdherenceRecordsQueryKey } from "@workspace/api-client-react";
+import { useListUsers, useListDevices, useListAdherenceRecords, getListUsersQueryKey, getListDevicesQueryKey, getListAdherenceRecordsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Users, Search, ChevronRight, TrendingUp, Phone, Mail } from "lucide-react";
+import { Users, Search, ChevronRight, TrendingUp, Phone, Mail, Cpu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 export default function PatientsPage() {
   const [search, setSearch] = useState("");
   const { data: patients, isLoading } = useListUsers({ role: "patient" }, { query: { queryKey: getListUsersQueryKey({ role: "patient" }) } });
+  const { data: devices } = useListDevices({ query: { queryKey: getListDevicesQueryKey() } });
   const { data: adherence } = useListAdherenceRecords({}, { query: { queryKey: getListAdherenceRecordsQueryKey() } });
 
   const filtered = patients?.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase()));
@@ -37,6 +38,7 @@ export default function PatientsPage() {
         <div className="space-y-3">
           {filtered.map((patient) => {
             const rate = getAdherenceRate(patient.id);
+            const mappedDevice = devices?.find((device) => device.patientId === patient.id);
             return (
               <Link key={patient.id} href={`/patients/${patient.id}`}>
                 <div className="cursor-pointer rounded-2xl border bg-white p-4 transition-all hover:border-primary/30 hover:shadow-sm card-hover sm:p-5">
@@ -52,6 +54,14 @@ export default function PatientsPage() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{patient.email}</span>
                       {patient.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{patient.phone}</span>}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Cpu className="w-3 h-3" />
+                      {mappedDevice ? (
+                        <span>Mapped device: <span className="font-medium text-foreground">{mappedDevice.name}</span> ({mappedDevice.deviceCode})</span>
+                      ) : (
+                        <span>No device mapped</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">

@@ -24,6 +24,7 @@ const createUserSchema = z.object({
 const createAssignmentSchema = z.object({ caretakerId: z.number().int().positive(), patientId: z.number().int().positive() });
 const createMedicineSchema = z.object({ patientId: z.number().int().positive(), name: z.string().min(1), dosage: z.string().min(1), unit: z.string().min(1), description: z.string().optional().nullable(), color: z.string().optional().nullable() });
 const createReminderSchema = z.object({ patientId: z.number().int().positive(), medicineId: z.number().int().positive(), scheduledTime: z.string().min(1), daysOfWeek: z.string().min(1), dosage: z.string().min(1), notes: z.string().optional().nullable(), deviceId: z.number().int().positive().optional().nullable() });
+const manualSyncSchema = z.object({ patientId: z.number().int().positive().optional().nullable() });
 const createDeviceSchema = z.object({ deviceCode: z.string().min(1), name: z.string().min(1), patientId: z.number().int().positive().optional().nullable(), firmwareVersion: z.string().optional().nullable() });
 const updateTokenSchema = z.object({ fcmToken: z.string().min(1) });
 
@@ -183,6 +184,20 @@ router.post("/reminders", async (req: any, res: any) => {
   emitRealtime("reminder.created", reminder);
   await syncRemindersForPatientDevices(payload.patientId, payload.deviceId ?? null);
   res.status(201).json(reminder);
+});
+
+router.post("/reminders/sync", async (req: any, res: any) => {
+  const payload = manualSyncSchema.parse(req.body ?? {});
+
+  if (payload.patientId) {
+    await syncRemindersForPatientDevices(payload.patientId);
+    return res.json({ ok: true, syncedPatientIds: [payload.patientId] });
+  }
+
+  const reminders = await store.listReminders();
+  const patientIds = Array.from(new Set(reminders.map((reminder) => reminder.patientId)));
+  await Promise.all(patientIds.map((patientId) => syncRemindersForPatientDevices(patientId)));
+  return res.json({ ok: true, syncedPatientIds: patientIds });
 });
 
 router.patch("/reminders/:id/toggle", async (req: any, res: any) => {

@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useListEvents, useDeleteEvent, useClearEventsByType, getListEventsQueryKey } from "@workspace/api-client-react";
+import { useListEvents, useDeleteEvent, useClearEventsByType, useManualSyncReminders, useListUsers, getListEventsQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Activity, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getCurrentUser } from "@/lib/auth";
 
 const severityStyles = {
   info: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-400" },
@@ -15,18 +17,22 @@ const severityStyles = {
 };
 
 export default function EventsPage() {
+  const user = getCurrentUser();
   const [search, setSearch] = useState("");
+  const [syncPatientId, setSyncPatientId] = useState<string>("");
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: events, isLoading } = useListEvents({ limit: 100 }, { query: { queryKey: getListEventsQueryKey({ limit: 100 }) } });
+  const { data: patients } = useListUsers({ role: "patient" }, { query: { queryKey: getListUsersQueryKey({ role: "patient" }) } });
   const deleteEvent = useDeleteEvent();
   const clearEventsByType = useClearEventsByType();
+  const manualSync = useManualSyncReminders();
 
   const filtered = events?.filter((event) => event.description.toLowerCase().includes(search.toLowerCase()) || event.eventType.toLowerCase().includes(search.toLowerCase()));
 
   function adherenceImpactLabel(eventType: string): string | null {
     if (eventType === "reminder_triggered") return "Adherence: pending started";
-    if (eventType === "box_opened" || eventType === "medicine_taken") return "Adherence: may mark taken (only after reminder)";
+    if (eventType === "motion_detected" || eventType === "box_opened" || eventType === "medicine_taken") return "Adherence: may mark taken (only after reminder)";
     if (eventType === "medicine_missed") return "Adherence: may mark missed (only after reminder)";
     return null;
   }
@@ -38,6 +44,39 @@ export default function EventsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search events..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-events" />
         </div>
+        {(user?.role === "admin" || user?.role === "caretaker") && (
+          <div className="w-full sm:w-64">
+            <Select value={syncPatientId} onValueChange={setSyncPatientId}>
+              <SelectTrigger data-testid="select-sync-patient">
+                <SelectValue placeholder="Sync specific patient" />
+              </SelectTrigger>
+              <SelectContent>
+                {patients?.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <Button
+          disabled={manualSync.isPending}
+          onClick={() => {
+            const payload = user?.role === "patient"
+              ? { patientId: user.id }
+              : syncPatientId
+                ? { patientId: Number(syncPatientId) }
+                : {};
+            manualSync.mutate(payload, {
+              onSuccess: (result) => {
+                toast({ title: `Manual sync sent (${result.syncedPatientIds.length} patient scope)` });
+              },
+              onError: () => toast({ title: "Manual sync failed", variant: "destructive" }),
+            });
+          }}
+          data-testid="button-manual-sync-reminders"
+        >
+          {manualSync.isPending ? "Syncing..." : "Sync reminders now"}
+        </Button>
         <Button
           variant="outline"
           disabled={clearEventsByType.isPending}
@@ -61,7 +100,7 @@ export default function EventsPage() {
 
       <div className="mb-4 rounded-xl border bg-amber-50 px-4 py-3 text-xs text-amber-900" data-testid="adherence-flow-note">
         Adherence flow: <span className="font-semibold">Reminder Triggered</span> {"->"} <span className="font-semibold">Pending</span> {"->"} <span className="font-semibold">Taken/Missed</span>.
-        Random motion/box events without a recent reminder are ignored for adherence.
+        Motion after a recent reminder can mark taken. Random motion/box events without a recent reminder are ignored for adherence.
       </div>
 
       {isLoading ? (

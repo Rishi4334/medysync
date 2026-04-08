@@ -1,7 +1,7 @@
 import { useRoute, Link } from "wouter";
-import { useGetUser, useListReminders, useListEvents, useGetAdherenceStats, getGetUserQueryKey, getListRemindersQueryKey, getListEventsQueryKey, getGetAdherenceStatsQueryKey } from "@workspace/api-client-react";
+import { useGetUser, useListDevices, useListReminders, useListEvents, useGetAdherenceStats, getGetUserQueryKey, getListDevicesQueryKey, getListRemindersQueryKey, getListEventsQueryKey, getGetAdherenceStatsQueryKey } from "@workspace/api-client-react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { ArrowLeft, Bell, Activity } from "lucide-react";
+import { ArrowLeft, Bell, Activity, Cpu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function PatientDetailPage() {
@@ -9,6 +9,7 @@ export default function PatientDetailPage() {
   const id = params ? parseInt(params.id) : 0;
 
   const { data: patient, isLoading } = useGetUser(id, { query: { enabled: !!id, queryKey: getGetUserQueryKey(id) } });
+  const { data: devices } = useListDevices({ query: { enabled: !!id, queryKey: getListDevicesQueryKey() } });
   const { data: reminders } = useListReminders({ patientId: id }, { query: { enabled: !!id, queryKey: getListRemindersQueryKey({ patientId: id }) } });
   const { data: events } = useListEvents({ patientId: id, limit: 10 }, { query: { enabled: !!id, queryKey: getListEventsQueryKey({ patientId: id, limit: 10 }) } });
   const { data: stats } = useGetAdherenceStats({ patientId: id }, { query: { enabled: !!id, queryKey: getGetAdherenceStatsQueryKey({ patientId: id }) } });
@@ -20,6 +21,8 @@ export default function PatientDetailPage() {
   if (!patient) {
     return <AppLayout title="Patient not found"><p>Patient not found.</p></AppLayout>;
   }
+
+  const mappedDevice = devices?.find((device) => device.patientId === patient.id);
 
   const eventTypeLabel: Record<string, string> = {
     motion_detected: "Motion Detected",
@@ -57,6 +60,14 @@ export default function PatientDetailPage() {
             </div>
             <p className="text-muted-foreground mt-1">{patient.email}</p>
             {patient.phone && <p className="text-sm text-muted-foreground">{patient.phone}</p>}
+            <div className="mt-2 inline-flex items-center gap-2 rounded-lg border bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700">
+              <Cpu className="w-3.5 h-3.5" />
+              {mappedDevice ? (
+                <span>Mapped device: <span className="font-medium text-slate-900">{mappedDevice.name}</span> ({mappedDevice.deviceCode})</span>
+              ) : (
+                <span>No mapped device</span>
+              )}
+            </div>
           </div>
           {stats && (
             <div className="grid w-full grid-cols-3 gap-3 text-center sm:gap-6 lg:ml-auto lg:w-auto">

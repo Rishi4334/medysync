@@ -293,6 +293,16 @@ export function useToggleReminder() {
   return useMutation({ mutationFn: async ({ id }: { id: number }) => request<Reminder>(`/reminders/${id}/toggle`, { method: "PATCH" }) });
 }
 
+export function useManualSyncReminders() {
+  return useMutation({
+    mutationFn: async ({ patientId }: { patientId?: number | null } = {}) =>
+      request<{ ok: boolean; syncedPatientIds: number[] }>("/reminders/sync", {
+        method: "POST",
+        body: JSON.stringify({ patientId: patientId ?? null }),
+      }),
+  });
+}
+
 export function useListEvents(params: { patientId?: number; limit?: number } = {}, options?: { query?: { queryKey?: readonly unknown[]; enabled?: boolean } }) {
   const query = new URLSearchParams();
   if (params.patientId) query.set("patientId", String(params.patientId));

@@ -137,7 +137,7 @@ export async function startMqttBridge() {
             log.info("Adherence pending created from reminder", { patientId: device.patientId, deviceCode });
           }
 
-          if (eventType === "box_opened" || eventType === "medicine_taken") {
+          if (eventType === "motion_detected" || eventType === "box_opened" || eventType === "medicine_taken") {
             const updated = await resolveLatestPendingAdherence(device.patientId, "taken", "Auto-marked as taken from post-reminder interaction");
             if (updated) {
               log.info("Adherence marked taken from telemetry", { patientId: device.patientId, deviceCode, event: eventType });

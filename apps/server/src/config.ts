@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 const envCandidates = [
@@ -17,6 +18,12 @@ function fromEnv(value: string | undefined, fallback: string): string {
   return value && value.trim().length > 0 ? value : fallback;
 }
 
+function buildMqttClientId(): string {
+  const base = fromEnv(process.env.MQTT_CLIENT_ID, "medcare-backend");
+  const suffix = `${os.hostname()}-${process.pid}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return `${base}-${suffix}`;
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 8080),
   nodeEnv: fromEnv(process.env.NODE_ENV, "development"),
@@ -24,7 +31,7 @@ export const config = {
   jwtSecret: fromEnv(process.env.JWT_SECRET, "replace-this-secret"),
   apiBaseUrl: fromEnv(process.env.API_BASE_URL, "http://localhost:8080"),
   mqttBrokerUrl: fromEnv(process.env.MQTT_BROKER_URL, "mqtt://localhost:1883"),
-  mqttClientId: fromEnv(process.env.MQTT_CLIENT_ID, "medcare-backend"),
+  mqttClientId: buildMqttClientId(),
   mqttUsername: process.env.MQTT_USERNAME ?? "",
   mqttPassword: process.env.MQTT_PASSWORD ?? "",
   mqttBaseTopic: fromEnv(process.env.MQTT_BASE_TOPIC, "medcare"),
