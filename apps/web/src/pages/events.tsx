@@ -60,7 +60,7 @@ export default function EventsPage() {
       </div>
 
       <div className="mb-4 rounded-xl border bg-amber-50 px-4 py-3 text-xs text-amber-900" data-testid="adherence-flow-note">
-        Adherence flow: <span className="font-semibold">Reminder Triggered</span> -> <span className="font-semibold">Pending</span> -> <span className="font-semibold">Taken/Missed</span>. 
+        Adherence flow: <span className="font-semibold">Reminder Triggered</span> {"->"} <span className="font-semibold">Pending</span> {"->"} <span className="font-semibold">Taken/Missed</span>.
         Random motion/box events without a recent reminder are ignored for adherence.
       </div>
 
