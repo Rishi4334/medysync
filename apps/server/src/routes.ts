@@ -35,15 +35,6 @@ async function syncRemindersForPatientDevices(patientId: number, preferredDevice
     return device.patientId === patientId;
   });
 
-  if (targets.length === 0 && allDevices.length === 1) {
-    targets = [allDevices[0]];
-    log.warn("Reminder sync fallback to only registered device", {
-      patientId,
-      fallbackDeviceCode: allDevices[0].deviceCode,
-      reason: "no patient-mapped device",
-    });
-  }
-
   if (targets.length === 0) {
     log.warn("Reminder sync skipped - no target devices", {
       patientId,
